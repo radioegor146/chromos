@@ -1,20 +1,20 @@
 package chromos
 
 import (
+	"crypto/ecdsa"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
-	"errors"
 	"io"
-	"fmt"
-	"encoding/json"
+	"strconv"
 	"strings"
-	"crypto/sha256"
-	"encoding/hex"
-	"crypto/ecdsa"
-	"crypto/x509"
 )
 
 const (
