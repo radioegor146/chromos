@@ -18,3 +18,7 @@ if err != nil {
 
 fmt.Printf("current time in milliseconds: %d", time)
 ```
+
+Available servers:
+- `chromos.GetGoogleConfig()` - `http://clients2.google.com/time/1/current` (from Google Chrome sources)
+- `chromos.GetMicrosoftConfig()` - `http://edge.microsoft.com/browsernetworktime/time/1/current` (from MSEdge reverse engineering)
