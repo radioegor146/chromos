@@ -5,15 +5,20 @@ import (
 )
 
 func TestGoogleServer(t *testing.T) {
-	time, err := FetchTime(GetGoogleConfig())
-	if err != nil {
-		t.Errorf("FetchTime(GetGoogleConfig()) returned error: %v", err)
-		return
-	}
+	for ver := minGoogleKeyVersion; ver <= maxGoogleKeyVersion; ver++ {
+		if getGoogleKey(ver) == nil {
+			continue
+		}
+		time, err := FetchTime(GetGoogleConfigVersion(ver))
+		if err != nil {
+			t.Errorf("FetchTime(GetGoogleConfig()) returned error: %v", err)
+			return
+		}
 
-	if time == 0 {
-		t.Errorf("FetchTime(GetGoogleConfig()) returned time == 0")
-		return
+		if time == 0 {
+			t.Errorf("FetchTime(GetGoogleConfig()) returned time == 0")
+			return
+		}
 	}
 }
 
