@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright (C) 2025 Egor Koleda
 package chromos
 
 import (
