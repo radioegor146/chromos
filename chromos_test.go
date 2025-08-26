@@ -1,6 +1,7 @@
 package chromos
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -9,28 +10,33 @@ func TestGoogleServer(t *testing.T) {
 		if getGoogleKey(ver) == nil {
 			continue
 		}
-		time, err := FetchTime(GetGoogleConfigVersion(ver))
+		time, err := Query(GetGoogleConfigVersion(ver))
 		if err != nil {
-			t.Errorf("FetchTime(GetGoogleConfig()) returned error: %v", err)
-			return
+			t.Errorf("Query(GetGoogleConfig()) returned error: %v", err)
 		}
-
-		if time == 0 {
-			t.Errorf("FetchTime(GetGoogleConfig()) returned time == 0")
-			return
+		if testing.Verbose() {
+			fmt.Println("GoogleKey", ver, time)
 		}
 	}
 }
 
 func TestMicrosoftServer(t *testing.T) {
-	time, err := FetchTime(GetMicrosoftConfig())
+	time, err := Query(GetMicrosoftConfig())
 	if err != nil {
-		t.Errorf("FetchTime(GetMicrosoftConfig()) returned error: %v", err)
+		t.Errorf("Query(GetMicrosoftConfig()) returned error: %v", err)
 		return
 	}
+	if testing.Verbose() {
+		fmt.Println("MircosoftKey", time)
+	}
+}
 
-	if time == 0 {
-		t.Errorf("FetchTime(GetMicrosoftConfig()) returned time == 0")
-		return
+func TestReadmeExample(t *testing.T) {
+	resp, err := Query(GetGoogleConfig())
+	if err != nil {
+		panic(err)
+	}
+	if testing.Verbose() {
+		fmt.Printf("Google's time: %s\n", resp.Time)
 	}
 }

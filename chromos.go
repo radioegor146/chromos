@@ -1,6 +1,7 @@
 package chromos
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
@@ -12,9 +13,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -28,6 +31,10 @@ const (
 
 	nonceLength = 32
 	emptySha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+	// Precision is the precision of the server's clock.  All the endpoints
+	// supporting this protocol claim precision of one Millisecond.
+	Precision = 1 * time.Millisecond
 )
 
 type TimeServiceConfig struct {
@@ -38,6 +45,14 @@ type TimeServiceConfig struct {
 
 type timeServiceResponse struct {
 	CurrentTimeMillis int64 `json:"current_time_millis"`
+}
+
+type Response struct {
+	// Time is the time reported by the server. You should not use this value for time
+	// synchronization purposes.  Use the ClockOffset instead.
+	Time        time.Time
+	ClockOffset time.Duration
+	RTT         time.Duration
 }
 
 func generateRequestParams(config TimeServiceConfig) ([]byte, string, error) {
@@ -118,35 +133,52 @@ func verifyResponse(response *http.Response, config TimeServiceConfig, cup2key s
 	return body, nil
 }
 
-func FetchTime(config TimeServiceConfig) (int64, error) {
+func Query(config TimeServiceConfig) (*Response, error) {
 	client := &http.Client{}
 
 	nonce, cup2key, err := generateRequestParams(config)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	values := url.Values{}
 	values.Set("cup2key", cup2key)
 	values.Set("cup2hreq", emptySha256)
 
-	response, err := client.Get(fmt.Sprintf("%s?%s", config.timeServiceURL, values.Encode()))
+	url := config.timeServiceURL + "?" + values.Encode()
+
+	var t1, t4 time.Time
+	traceConf := &httptrace.ClientTrace{
+		WroteRequest:         func(httptrace.WroteRequestInfo) { t1 = time.Now() },
+		GotFirstResponseByte: func() { t4 = time.Now() },
+	}
+	traceCtx := httptrace.WithClientTrace(context.Background(), traceConf)
+	request, err := http.NewRequestWithContext(traceCtx, "GET", url, nil)
 	if err != nil {
-		return 0, err
+		return nil, err
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
 	}
 
 	responseBody, err := verifyResponse(response, config, cup2key, nonce)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	var parsedResponse timeServiceResponse
 	err = json.Unmarshal(responseBody[5:], &parsedResponse)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return parsedResponse.CurrentTimeMillis, nil
+	// Precision/2 mimcs "an unbiased random bit string" in "the non-significant bits" from NTPv4.
+	t23 := time.UnixMilli(parsedResponse.CurrentTimeMillis).UTC()
+	rtt := t4.Sub(t1)
+	offset := t23.Add(Precision / 2).Sub(t4.Add(-(rtt / 2)))
+	return &Response{Time: t23, ClockOffset: offset, RTT: rtt}, nil
 }
 
 // https://chromium.googlesource.com/chromium/src.git/+log/refs/heads/main/components/network_time/network_time_tracker.cc
